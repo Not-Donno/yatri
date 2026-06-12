@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  MECHANIC
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  ON_THE_WAY
+  ARRIVED
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+
+  role Role
+
+  isOnline Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  mechanicProfile MechanicProfile?
+
+  customerRequests ServiceRequest[] @relation("CustomerRequests")
+  mechanicJobs     ServiceRequest[] @relation("MechanicJobs")
+}
+
+model MechanicProfile {
+  id String @id @default(uuid())
+
+  userId String @unique
+
+  phone String?
+  experience Int?
+  specialization String?
+  rating Float @default(0)
+
+  isAvailable Boolean @default(false)
+
+  latitude Float?
+  longitude Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ServiceRequest {
+  id String @id @default(uuid())
+
+  customerId String
+  mechanicId String?
+
+  issue String
+
+  latitude  Float
+  longitude Float
+
+  status RequestStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer User @relation("CustomerRequests", fields: [customerId], references: [id], onDelete: Cascade)
+
+  mechanic User? @relation("MechanicJobs", fields: [mechanicId], references: [id], onDelete: SetNull)
+}
