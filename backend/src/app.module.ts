@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { MechanicsModule } from './mechanics/mechanics.module';
 import { RequestsModule } from './requests/requests.module';
+import { SocketModule } from './socket/socket.module';
 
 @Module({
   imports: [
@@ -17,6 +18,8 @@ import { RequestsModule } from './requests/requests.module';
     }),
 
     PrismaModule,
+    
+    SocketModule,
 
     AuthModule,
 

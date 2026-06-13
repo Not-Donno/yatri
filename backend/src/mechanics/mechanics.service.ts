@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SocketGateway } from '../socket/socket.gateway';
 
 @Injectable()
 export class MechanicsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private socketGateway: SocketGateway,
+  ) {}
 
   async goOnline(userId: string) {
     return this.prisma.mechanicProfile.upsert({
@@ -40,7 +44,8 @@ export class MechanicsService {
     latitude: number,
     longitude: number,
   ) {
-    return this.prisma.mechanicProfile.upsert({
+    // Update mechanic location
+    const profile = await this.prisma.mechanicProfile.upsert({
       where: {
         userId,
       },
@@ -55,5 +60,27 @@ export class MechanicsService {
         isAvailable: false,
       },
     });
+
+    // Find active request
+    const activeRequest =
+      await this.prisma.serviceRequest.findFirst({
+        where: {
+          mechanicId: userId,
+          status: {
+            in: ['ACCEPTED', 'ON_THE_WAY'],
+          },
+        },
+      });
+
+    // Send live location to customer
+    if (activeRequest) {
+      this.socketGateway.sendMechanicLocation(
+        activeRequest.id,
+        latitude,
+        longitude,
+      );
+    }
+
+    return profile;
   }
 }
