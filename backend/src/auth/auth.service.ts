@@ -75,8 +75,17 @@ export class AuthService {
       role: user.role,
     });
 
-    return {
-      access_token: token,
-    };
+return {
+  token: this.jwtService.sign({
+    sub: user.id,
+    role: user.role,
+  }),
+  user: {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name,
+  },
+};
   }
 }

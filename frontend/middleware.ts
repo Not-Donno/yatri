@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "secret"
+);
+
+async function verify(token: string) {
+  const { payload } = await jwtVerify(token, JWT_SECRET);
+  return payload;
+}
 
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get("token")?.value;
-
   const { pathname } = req.nextUrl;
 
-  // public routes
+  // Public routes
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/register")
@@ -14,46 +23,30 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // no token → login
+  // No token → redirect login
   if (!token) {
-    return NextResponse.redirect(
-      new URL("/login", req.url)
-    );
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // ROLE CHECK (call backend)
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const user = await verify(token);
 
-    if (!res.ok) {
-      return NextResponse.redirect(
-        new URL("/login", req.url)
-      );
-    }
+    const role = user.role as string;
 
-    const user = await res.json();
-
-    // CUSTOMER route protection
+    // CUSTOMER protection
     if (
       pathname.startsWith("/customer") &&
-      user.role !== "CUSTOMER"
+      role !== "CUSTOMER"
     ) {
       return NextResponse.redirect(
         new URL("/mechanic/dashboard", req.url)
       );
     }
 
-    // MECHANIC route protection
+    // MECHANIC protection
     if (
       pathname.startsWith("/mechanic") &&
-      user.role !== "MECHANIC"
+      role !== "MECHANIC"
     ) {
       return NextResponse.redirect(
         new URL("/customer/dashboard", req.url)
@@ -62,15 +55,10 @@ export async function middleware(req: NextRequest) {
 
     return NextResponse.next();
   } catch (err) {
-    return NextResponse.redirect(
-      new URL("/login", req.url)
-    );
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 }
 
 export const config = {
-  matcher: [
-    "/customer/:path*",
-    "/mechanic/:path*",
-  ],
+  matcher: ["/customer/:path*", "/mechanic/:path*"],
 };

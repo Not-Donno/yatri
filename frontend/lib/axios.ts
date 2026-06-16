@@ -5,12 +5,13 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("token")
-      : null;
+  if (typeof window === "undefined") return config;
 
-  if (token && config.headers) {
+  const token = localStorage.getItem("token");
+
+  console.log("TOKEN SENT:", token); // DEBUG
+
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 

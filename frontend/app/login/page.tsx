@@ -1,64 +1,88 @@
 "use client";
 
 import { useState } from "react";
+import { api } from "@/lib/axios";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/auth.store";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const login = useAuthStore((s) => s.login);
-  const isLoading = useAuthStore((s) => s.isLoading);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleLogin = async () => {
     try {
-      await login(email, password);
+      setLoading(true);
 
-      // redirect after login
-      router.push("/customer/dashboard");
-    } catch (err) {
-      alert("Login failed");
+      const res = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      console.log("LOGIN RESPONSE:", res.data);
+
+      const token = res.data?.token;
+      const user = res.data?.user;
+
+      // ✅ SAFETY CHECK (prevents crash)
+      if (!token || !user) {
+        alert("Invalid login response from server");
+        return;
+      }
+
+      // ✅ STORE TOKEN
+      localStorage.setItem("token", token);
+
+      // ✅ REDIRECT BASED ON ROLE
+      if (user.role === "CUSTOMER") {
+        router.push("/customer/dashboard");
+      } else if (user.role === "MECHANIC") {
+        router.push("/mechanic/dashboard");
+      } else {
+        router.push("/");
+      }
+    } catch (err: any) {
+      console.error("Login failed:", err);
+      alert(
+        err?.response?.data?.message ||
+          "Login failed. Check credentials."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <form
-        onSubmit={handleLogin}
-        className="bg-white p-6 rounded-xl shadow-md w-[350px]"
-      >
-        <h1 className="text-2xl font-bold mb-4 text-center">
-          Yatri Login
+    <div className="flex items-center justify-center h-screen bg-gray-100">
+      <div className="bg-white p-6 rounded shadow w-80">
+        <h1 className="text-xl font-bold mb-4">
+          Login
         </h1>
 
         <input
-          type="email"
+          className="border p-2 w-full mb-3"
           placeholder="Email"
-          className="w-full border p-2 mb-3 rounded"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
+          className="border p-2 w-full mb-3"
           type="password"
           placeholder="Password"
-          className="w-full border p-2 mb-4 rounded"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
 
         <button
-          disabled={isLoading}
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+          onClick={handleLogin}
+          disabled={loading}
+          className="bg-black text-white w-full p-2 rounded"
         >
-          {isLoading ? "Logging in..." : "Login"}
+          {loading ? "Logging in..." : "Login"}
         </button>
-      </form>
+      </div>
     </div>
   );
 }
